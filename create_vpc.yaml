@@ -136,6 +136,9 @@
           - [185, tcp, 'allow', '24.239.105.213/32', null, null, 80, 80]
           - [200, tcp, 'allow', '0.0.0.0/0', null, null, 22, 22]
           - [300, tcp, 'allow', '0.0.0.0/0', null, null, 1024, 65535]
+          - [400, tcp, 'allow', '141.152.26.111/32', null, null, 443, 443]
+          - [425, tcp, 'allow', '24.196.25.139/32', null, null, 443, 443]
+          - [450, tcp, 'allow', '24.239.105.213/32', null, null, 443, 443]
         egress:
           - [100, tcp, 'allow', '0.0.0.0/0', null, null, 80, 80]
           - [200, tcp, 'allow', '0.0.0.0/0', null, null, 443, 443]
@@ -256,51 +259,94 @@
         state: present
       register: ig_endpoint_tag_sg
 
+
     #########################################################################
     #########################################################################
-    #####################  Create launch template  ##########################
+    #############  Create RDS private subnet group and ig-RDS  ##############
+    #########################################################################
+    #########################################################################
+
+    - name: Create RDS Subnet Group
+      rds_subnet_group:
+        name: Module5-ig-private-subnet-grp
+        description: RDS subnet group for Module 5 ig-db
+        subnets:
+          - "{{private_subnet1.subnet.id}}"
+          - "{{private_subnet2.subnet.id}}"
+        state: present
+      register: rds_subnet_grp
+
+    - name: Create RDS Instance
+      rds:
+        command: create
+        instance_name: Module5-image-gallery
+        db_engine: postgres
+        size: '10'
+        instance_type: db.t2.micro
+        username: postgres
+        password: Keldailin120217!
+        subnet: module5-ig-private-subnet-grp
+        vpc_security_groups: "{{ig_postgres_sg.group_id}}"
+
+    #########################################################################
+    #########################################################################
+    ###########  Create launch template, target group, and nlb  #############
     #########################################################################
     #########################################################################
 
     #ig_postgres_tag_sg
     #ig_endpoint_tag_sg
     #ig_nginx_server_sg
-#    - name: Create Launch Template
-#      ec2_launch_template:
-#        name: Module5-ig-launch-template
-#        image_id: "ami-09d95fab7fff3776c"
-#        instance_type: t3a.nano
-#        key_name: csKP
-#        iam_instance_profile: image-gallery-server-role
-#        network_interfaces:
-#          - device_index: 0
-#            associate_public_ip_address: yes
-#            groups:
-#              - "{{ig_postgres_tag_sg.group_id}}"
-#              - "{{ig_endpoint_tag_sg.group_id}}"
-#              - "{{ig_nginx_server_sg.group_id}}"
-#        state: present
-#      register: ig_launch_template
-#
-#    - name: Create Network Load Balancer
-#      elb_network_lb:
-#        name: Module5-ig-nlb
-#        subnets:
-#          - "{{public_subnet.subnet.id}}"
-#        listeners:
-#          - Protocol: TCP
-#            Port: 80
-#            Certificates:
-#              - certificate_arn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
-#            DefaultActions:
-#              - type: forward
-#                TargetGroupName: Module5-ig-target-group
-#          - Protocol: TLS
-#            Port: 443
-#            Certificates:
-#              - certificate_arn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
-#            DefaultActions:
-#              - type: forward
-#                TargetGroupName: Module5-ig-target-group
-#        state: present
+    - name: Create Launch Template
+      ec2_launch_template:
+        name: Module5-ig-launch-template
+        image_id: "ami-09d95fab7fff3776c"
+        instance_type: t3a.nano
+        key_name: csKP
+        iam_instance_profile: image-gallery-server-role
+        network_interfaces:
+          - device_index: 0
+            associate_public_ip_address: yes
+            groups:
+              - "{{ig_postgres_tag_sg.group_id}}"
+              - "{{ig_endpoint_tag_sg.group_id}}"
+              - "{{ig_nginx_server_sg.group_id}}"
+        user_data: "{{ lookup('file', './startup-scripts/ec2_startup.sh') | b64encode }}"
+        state: present
+      register: ig_launch_template
+
+    - name: Create Network Load Balancer
+      elb_network_lb:
+        name: Module5-ig-nlb
+        subnets:
+          - "{{public_subnet.subnet.id}}"
+        listeners:
+          - Protocol: TCP
+            Port: 80
+            Certificates:
+              - certificate_arn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
+            DefaultActions:
+              - type: forward
+                TargetGroupName: Module5-ig-target-group
+          - Protocol: TLS
+            Port: 443
+            Certificates:
+              - certificate_arn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
+            DefaultActions:
+              - type: forward
+                TargetGroupName: Module5-ig-target-group
+        state: present
+
+    - name: Create Auto Scaling Group
+        ec2-asg:
+          name: Module5-ig-asg
+          launch_template:
+            launch_template_name: Module5-ig-launch-template
+          desired_capacity: 1
+          min_size: 1
+          max_size: 4
+        vpc_zone_identifier: [ 'Module5-ig-public-sn' ]
+        health_check_type:
+          - EC2:
+        health_check_period: "500 seconds"
 
