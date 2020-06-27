@@ -1,0 +1,27 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    ami_id: "ami-09d95fab7fff3776c"
+  module_defaults:
+    group/aws:
+      profile: default
+      region: us-east-1
+
+  tasks:
+    - name: Provision EC2 instance
+      ec2:
+        key_name: csKP
+        group:
+          - Module5-ig-nginx-server-sg
+          - Module5-ig-postgres-tag-sg
+          - Module5-ig-endpoint-tag-sg
+        instance_type: t3a.nano
+        image: "{{ami_id}}"
+        instance_tags:
+          Name: Module5 EC2
+        wait: yes
+        vpc_subnet_id: "{{public_subnet.subnet.id}}"
+        exact_count: 1
+        count_tag:
+          Name: Module5 EC2
