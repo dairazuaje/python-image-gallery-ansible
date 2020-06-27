@@ -2,210 +2,305 @@
 - hosts: localhost
   gather_facts: no
   module_defaults:
-      group/aws:
-          profile: default
-          region: us-east-1
+    group/aws:
+      profile: default
+      region: us-east-1
   tasks:
 
-      #########################################################################
-      #########################################################################
-      #############  Create VPC, Subnets, IGW and NAT  ########################
-      #########################################################################
-      #########################################################################
+    #########################################################################
+    #########################################################################
+    #############  Create VPC, Subnets, IGW and NAT  ########################
+    #########################################################################
+    #########################################################################
 
-      - name: Create VPC
-        ec2_vpc_net:
-            name: image-gallery-ansible
-            cidr_block: 10.0.0.0/16
-            tags:
-                Module: 5
-            state: present
-        register: vpc
+    - name: Create VPC
+      ec2_vpc_net:
+        name: image-gallery-ansible
+        cidr_block: 10.0.0.0/16
+        tags:
+          Module: 5
+        state: present
+      register: vpc
 
-      - name: Create Public Subnet
-        ec2_vpc_subnet:
-            vpc_id: "{{vpc.vpc.id}}"
-            az: us-east-1a
-            tags:
-                Name: Module5 public
-                Module: 5
-            cidr: 10.0.1.0/24
-            state: present
-        register: public_subnet
+    - name: Create Public Subnet
+      ec2_vpc_subnet:
+        vpc_id: "{{vpc.vpc.id}}"
+        az: us-east-1a
+        tags:
+          Name: Module5-ig-public-sn
+          Module: 5
+        cidr: 10.0.1.0/24
+        state: present
+      register: public_subnet
 
-      - name: Create Private Subnet 1
-        ec2_vpc_subnet:
-            vpc_id: "{{vpc.vpc.id}}"
-            az: us-east-1a
-            tags:
-                Name: Module5 Private 1
-                Module: 5
-            cidr: 10.0.2.0/24
-            state: present
-        register: private_subnet1
+    - name: Create Private Subnet 1
+      ec2_vpc_subnet:
+        vpc_id: "{{vpc.vpc.id}}"
+        az: us-east-1a
+        tags:
+          Name: Module5-ig-private-sn-1
+          Module: 5
+        cidr: 10.0.2.0/24
+        state: present
+      register: private_subnet1
 
-      - name: Create Private Subnet 2
-        ec2_vpc_subnet:
-            vpc_id: "{{vpc.vpc.id}}"
-            az: us-east-1b
-            tags:
-                Name: Module5 Private 2
-                Module: 5
-            cidr: 10.0.3.0/24
-            state: present
-        register: private_subnet2
+    - name: Create Private Subnet 2
+      ec2_vpc_subnet:
+        vpc_id: "{{vpc.vpc.id}}"
+        az: us-east-1b
+        tags:
+          Name: Module5-ig-private-sn-2
+          Module: 5
+        cidr: 10.0.3.0/24
+        state: present
+      register: private_subnet2
 
-      - name: Create Internet Gateway
-        ec2_vpc_igw:
-            vpc_id: "{{vpc.vpc.id}}"
-            state: present
-            tags:
-                Name: Module5 igw
-        register: igw
+    - name: Create Internet Gateway
+      ec2_vpc_igw:
+        vpc_id: "{{vpc.vpc.id}}"
+        state: present
+        tags:
+          Name: Module5 igw
+      register: igw
 
-      - name: Create NAT Gateway
-        ec2_vpc_nat_gateway:
-            eip_address: 3.226.156.250
-            subnet_id: "{{public_subnet.subnet.id}}"
-            state: present
-        register: nat
+    - name: Create NAT Gateway
+      ec2_vpc_nat_gateway:
+        eip_address: 3.226.156.250
+        subnet_id: "{{public_subnet.subnet.id}}"
+        state: present
+      register: nat
 
-      - name: Create Public Route Table
-        ec2_vpc_route_table:
-            vpc_id: "{{vpc.vpc.id}}"
-            tags:
-                Name: Module5 Public Route Table
-            subnets:
-                - "{{public_subnet.subnet.id}}"
-            routes:
-                - dest: 0.0.0.0/0
-                  gateway_id: "{{igw.gateway_id}}"
-            state: present
+    - name: Create Public Route Table
+      ec2_vpc_route_table:
+        vpc_id: "{{vpc.vpc.id}}"
+        tags:
+          Name: Module5 Public Route Table
+        subnets:
+          - "{{public_subnet.subnet.id}}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{igw.gateway_id}}"
+        state: present
 
-      - name: Create Private Route Table
-        ec2_vpc_route_table:
-            vpc_id: "{{vpc.vpc.id}}"
-            tags:
-                Name: Module5 Private Route Table
-            subnets:
-                - "{{private_subnet1.subnet.id}}"
-                - "{{private_subnet2.subnet.id}}"
-            routes:
-                - dest: 0.0.0.0/0
-                  gateway_id: "{{nat.nat_gateway_id}}"
-            state: present
+    - name: Create Private Route Table
+      ec2_vpc_route_table:
+        vpc_id: "{{vpc.vpc.id}}"
+        tags:
+          Name: Module5 Private Route Table
+        subnets:
+          - "{{private_subnet1.subnet.id}}"
+          - "{{private_subnet2.subnet.id}}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{nat.nat_gateway_id}}"
+        state: present
+
+    #########################################################################
+    #########################################################################
+    #############  Create public and private network acl  ###################
+    #########################################################################
+    #########################################################################
+
+    - name: Create Private Network ACL
+      ec2_vpc_nacl:
+        vpc_id: "{{vpc.vpc.id}}"
+        name: Module5-ig-private-acl
+        subnets:
+          - Module5-ig-private-sn-1
+          - Module5-ig-private-sn-2
+        tags:
+          Name: Module5-ig-private-acl
+        ingress:
+          - [100, tcp, 'allow', '10.0.0.0/16', null, null, 5432, 5432]
+          - [120, tcp, 'allow', '10.0.0.0/16', null, null, 443, 443]
+          - [140, tcp, 'allow', '10.0.0.0/16', null, null, 1024, 65535]
+        egress:
+          - [120, tcp, 'allow', '10.0.0.0/16', null, null, 1024, 65535]
+          - [130, tcp, 'allow', '10.0.0.0/16', null, null, 443, 443]
+        state: present
+
+    - name: Create Public Network ACL
+      ec2_vpc_nacl:
+        vpc_id: "{{vpc.vpc.id}}"
+        name: Module5-ig-public-acl
+        subnets:
+          - Module5-ig-public-sn
+        tags:
+          Name: Module5-ig-public-acl
+        ingress:
+          - [100, tcp, 'allow', '141.152.26.111/32', null, null, 5000, 5000]
+          - [125, tcp, 'allow', '24.196.25.139/32', null, null, 5000, 5000]
+          - [150, tcp, 'allow', '24.239.105.213/32', null, null, 5000, 5000]
+          - [175, tcp, 'allow', '141.152.26.111/32', null, null, 80, 80]
+          - [180, tcp, 'allow', '24.196.25.139/32', null, null, 80, 80]
+          - [185, tcp, 'allow', '24.239.105.213/32', null, null, 80, 80]
+          - [200, tcp, 'allow', '0.0.0.0/0', null, null, 22, 22]
+          - [300, tcp, 'allow', '0.0.0.0/0', null, null, 1024, 65535]
+        egress:
+          - [100, tcp, 'allow', '0.0.0.0/0', null, null, 80, 80]
+          - [200, tcp, 'allow', '0.0.0.0/0', null, null, 443, 443]
+          - [300, tcp, 'allow', '0.0.0.0/0', null, null, 1024, 65535]
+        state: present
+
+    #########################################################################
+    #########################################################################
+    #############  Create all security groups for VPC  ######################
+    #########################################################################
+    #########################################################################
+
+    - name: Create nginx-server-sg
+      ec2_group:
+        name: Module5-ig-nginx-server-sg
+        description: Allows ssh, http and https from anywhere
+        vpc_id: "{{vpc.vpc.id}}"
+        rules:
+          - proto: tcp
+            ports:
+              - 22
+              - 80
+              - 443
+            cidr_ip: 0.0.0.0/0
+        tags:
+          Name: Module5-ig-nginx-server-sg
+        state: present
+      register: ig_nginx_server_sg
 
 
-      #########################################################################
-      #########################################################################
-      #############  Create all security groups for VPC  ######################
-      #########################################################################
-      #########################################################################
+    ######### Create ig-postgres-sg, ig-postgres-tag-sg and associate ############
 
-      - name: Create nginx-server-sg
-        ec2_group:
-            name: Module5-ig-nginx-server-sg
-            description: Allows ssh, http and https from anywhere
-            vpc_id: "{{vpc.vpc.id}}"
-            rules:
-                - proto: tcp
-                  ports:
-                      - 22
-                      - 80
-                      - 443
-                  cidr_ip: 0.0.0.0/0
-            tags:
-                Name: Module5-ig-nginx-server-sg
-            state: present
-        register: ig_nginx_server_sg
+    # Create ig-postgres-tag-sg with no rules and update after assigning group to ig-postgres-sg
+    - name: Create ig-postgres-tag-sg
+      ec2_group:
+        name: Module5-ig-postgres-tag-sg
+        description: Outgoing traffic to 5432
+        vpc_id: "{{vpc.vpc.id}}"
 
+        tags:
+          Name: Module5-ig-postgres-tag-sg
+        state: present
+      register: ig_postgres_tag_sg
 
-      ######### Create ig-postgres-sg, ig-postgres-tag-sg and associate ############
+    # Create ig-postgres-sg and assign group ig-postgres-tag on port 5432
+    - name: Create ig-postgres-sg
+      ec2_group:
+        name: Module5-ig-postgres-sg
+        description: Allows traffic on port 5432 from ig-postgres-tag-sg
+        vpc_id: "{{vpc.vpc.id}}"
+        rules:
+          - proto: tcp
+            from_port: 5432
+            to_port: 5432
+            group_id: "{{ig_postgres_tag_sg.group_id}}"
+        tags:
+          Name: Module5-ig-postgres-sg
+        state: present
+      register: ig_postgres_sg
 
-      # Create ig-postgres-tag-sg with no rules and update after assigning group to ig-postgres-sg
-      - name: Create ig-postgres-tag-sg
-        ec2_group:
-            name: Module5-ig-postgres-tag-sg
-            description: Outgoing traffic to 5432
-            vpc_id: "{{vpc.vpc.id}}"
+    # Update ig-postgres-tag-sg to have outbound to ig-postgres-sg
+    - name: Update ig-postgres-tag-sg
+      ec2_group:
+        name: Module5-ig-postgres-tag-sg
+        description: Allows outbound to ig-postgres-sg
+        vpc_id: "{{vpc.vpc.id}}"
+        rules_egress:
+          - proto: tcp
+            from_port: 5432
+            to_port: 5432
+            group_id: "{{ig_postgres_sg.group_id}}"
+        tags:
+          Name: Module5-ig-postgres-tag-sg
+        state: present
+      register: ig_postgres_tag_sg
 
-            tags:
-                Name: Module5-ig-postgres-tag-sg
-            state: present
-        register: ig_postgres_tag_sg
+    ######### Create ig-endpoint-sg, ig-endpoint-tag-sg and associate ############
 
-      # Create ig-postgres-sg and assign group ig-postgres-tag on port 5432
-      - name: Create ig-postgres-sg
-        ec2_group:
-            name: Module5-ig-postgres-sg
-            description: Allows traffic on port 5432 from ig-postgres-tag-sg
-            vpc_id: "{{vpc.vpc.id}}"
-            rules:
-                - proto: tcp
-                  from_port: 5432
-                  to_port: 5432
-                  group_id: "{{ig_postgres_tag_sg.group_id}}"
-            tags:
-                Name: Module5-ig-postgres-sg
-            state: present
-        register: ig_postgres_sg
+    # Create ig-endpoint-tag-sg with no rules and update after assigning group to ig-endpoint-sg
+    - name: Create ig-endpoint-tag-sg
+      ec2_group:
+        name: Module5-ig-endpoint-tag-sg
+        description: Allows Outgoing traffic to endpoint
+        vpc_id: "{{vpc.vpc.id}}"
 
-      # Update ig-postgres-tag-sg to have outbound to ig-postgres-sg
-      - name: Update ig-postgres-tag-sg
-        ec2_group:
-            name: Module5-ig-postgres-tag-sg
-            description: Allows outbound to ig-postgres-sg
-            vpc_id: "{{vpc.vpc.id}}"
-            rules_egress:
-                - proto: tcp
-                  from_port: 5432
-                  to_port: 5432
-                  group_id: "{{ig_postgres_sg.group_id}}"
-            tags:
-                Name: Module5-ig-postgres-tag-sg
-            state: present
-        register: ig_postgres_tag_sg
+        tags:
+          Name: Module5-ig-endpoint-tag-sg
+        state: present
+      register: ig_endpoint_tag_sg
 
-      ######### Create ig-endpoint-sg, ig-endpoint-tag-sg and associate ############
+    # Create ig-endpoint-sg and assign group ig-endpoint-tag to ig-endpoint-sg
+    - name: Create ig-endpoint-sg
+      ec2_group:
+        name: Module5-ig-endpoint-sg
+        description: Allows inbound traffic from ig-endpoint-tag-sg
+        vpc_id: "{{vpc.vpc.id}}"
+        rules:
+          - proto: all
+            group_id:
+              - "{{ig_endpoint_tag_sg.group_id}}"
+              - "{{ig_nginx_server_sg.group_id}}"
+        tags:
+          Name: Module5-ig-endpoint-sg
+        state: present
+      register: ig_endpoint_sg
 
-      # Create ig-endpoint-tag-sg with no rules and update after assigning group to ig-endpoint-sg
-      - name: Create ig-endpoint-tag-sg
-        ec2_group:
-            name: Module5-ig-endpoint-tag-sg
-            description: Allows Outgoing traffic to endpoint
-            vpc_id: "{{vpc.vpc.id}}"
+    # Update ig-postgres-tag-sg to have outbound to ig-postgres0sg
+    - name: Update ig-endpoint-tag-sg
+      ec2_group:
+        name: Module5-ig-endpoint-tag-sg
+        description: Allows outgoing to ig-endpoint-sg
+        vpc_id: "{{vpc.vpc.id}}"
+        rules_egress:
+          - proto: all
+            group_id: "{{ig_endpoint_sg.group_id}}"
+        tags:
+          Name: Module5-ig-endpoint-tag-sg
+        state: present
+      register: ig_endpoint_tag_sg
 
-            tags:
-                Name: Module5-ig-endpoint-tag-sg
-            state: present
-        register: ig_endpoint_tag_sg
+    #########################################################################
+    #########################################################################
+    #####################  Create launch template  ##########################
+    #########################################################################
+    #########################################################################
 
-      # Create ig-endpoint-sg and assign group ig-endpoint-tag to ig-endpoint-sg
-      - name: Create ig-endpoint-sg
-        ec2_group:
-            name: Module5-ig-endpoint-sg
-            description: Allows inbound traffic from ig-endpoint-tag-sg
-            vpc_id: "{{vpc.vpc.id}}"
-            rules:
-                - proto: all
-                  group_id:
-                    - "{{ig_endpoint_tag_sg.group_id}}"
-                    - "{{ig_nginx_server_sg.group_id}}"
-            tags:
-                Name: Module5-ig-endpoint-sg
-            state: present
-        register: ig_endpoint_sg
+    #ig_postgres_tag_sg
+    #ig_endpoint_tag_sg
+    #ig_nginx_server_sg
+#    - name: Create Launch Template
+#      ec2_launch_template:
+#        name: Module5-ig-launch-template
+#        image_id: "ami-09d95fab7fff3776c"
+#        instance_type: t3a.nano
+#        key_name: csKP
+#        iam_instance_profile: image-gallery-server-role
+#        network_interfaces:
+#          - device_index: 0
+#            associate_public_ip_address: yes
+#            groups:
+#              - "{{ig_postgres_tag_sg.group_id}}"
+#              - "{{ig_endpoint_tag_sg.group_id}}"
+#              - "{{ig_nginx_server_sg.group_id}}"
+#        state: present
+#      register: ig_launch_template
+#
+#    - name: Create Network Load Balancer
+#      elb_network_lb:
+#        name: Module5-ig-nlb
+#        subnets:
+#          - "{{public_subnet.subnet.id}}"
+#        listeners:
+#          - Protocol: TCP
+#            Port: 80
+#            Certificates:
+#              - certificate_arn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
+#            DefaultActions:
+#              - type: forward
+#                TargetGroupName: Module5-ig-target-group
+#          - Protocol: TLS
+#            Port: 443
+#            Certificates:
+#              - certificate_arn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
+#            DefaultActions:
+#              - type: forward
+#                TargetGroupName: Module5-ig-target-group
+#        state: present
 
-      # Update ig-postgres-tag-sg to have outbound to ig-postgres0sg
-      - name: Update ig-endpoint-tag-sg
-        ec2_group:
-            name: Module5-ig-endpoint-tag-sg
-            description: Allows outgoing to ig-endpoint-sg
-            vpc_id: "{{vpc.vpc.id}}"
-            rules_egress:
-                - proto: all
-                  group_id: "{{ig_endpoint_sg.group_id}}"
-            tags:
-                Name: Module5-ig-endpoint-tag-sg
-            state: present
-        register: ig_endpoint_tag_sg
