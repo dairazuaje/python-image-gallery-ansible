@@ -1,0 +1,31 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      profile: default
+      region: us-east-1
+  tasks:
+    - name: Create Image Gallery User
+      postgresql_user:
+        db: image_gallery
+        #db: "{{image_gallery_db.instance.db_name}}"
+        login_host: "{{image_gallery_db.instance.endpoint}}"
+        login_user: postgres
+        login_password: Keldailin120217!
+        name: image_gallery
+        password: Keldailin120217!
+        priv: ALL
+
+    - name: Create Users Table
+      postgresql_table:
+        db: image_gallery
+        #db: "{{image_gallery_db.instance.db_name}}"
+        login_host: "{{image_gallery_db.instance.endpoint}}"
+        login_user: image_gallery
+        login_password: Keldailin120217!
+        table: users
+        columns:
+          - username TEXT PRIMARY KEY NOT NULL
+          - password TEXT
+          - full_name TEXT

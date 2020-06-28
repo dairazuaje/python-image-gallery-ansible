@@ -287,6 +287,10 @@
         password: Keldailin120217!
         subnet: module5-ig-private-subnet-grp
         vpc_security_groups: "{{ig_postgres_sg.group_id}}"
+        wait: yes
+#        wait_timeout:
+#          - 480
+      register: image_gallery_db
 
     #########################################################################
     #########################################################################
@@ -363,17 +367,3 @@
               - Type: forward
                 TargetGroupArn: "{{ig_target_group.target_group_arn}}"
         state: present
-
-    - name: Set up image-gallery database
-      postgresql_table:
-        db: image_gallery
-        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
-        login_user: postgres
-        login_password: Keldailin120217!
-        table: users
-        columns:
-          - username TEXT PRIMARY KEY NOT NULL
-          - password TEXT
-          - full_name TEXT
-
-
