@@ -369,7 +369,7 @@
         db: image_gallery
         login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
         login_user: postgres
-        login_password: Keldailin120217
+        login_password: Keldailin120217!
         table: users
         columns:
           - username TEXT PRIMARY KEY NOT NULL
