@@ -329,6 +329,7 @@
         stickiness_enabled: no
         stickiness_type: source_ip
         state: present
+        wait: yes
       register: ig_target_group
 
     - name: Create Auto Scaling Group
@@ -343,16 +344,18 @@
           - "{{ig_target_group.target_group_arn}}"
         vpc_zone_identifier: "{{public_subnet.subnet.id}}"
         health_check_type: EC2
-        health_check_period: 500
+        health_check_period: 300
         tags:
           - Name: Module5-asg
+        wait_for_instances: yes
         state: present
 
     - name: Create Network Load Balancer
       elb_network_lb:
         name: Module5-ig-nlb
-        subnets:
-          - "{{public_subnet.subnet.id}}"
+        subnet_mappings:
+          - SubnetId: "{{public_subnet.subnet.id}}"
+            AllocationId: eipalloc-080333a0936e63f68
         listeners:
           - Protocol: TCP
             Port: 80
