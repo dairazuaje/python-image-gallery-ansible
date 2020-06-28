@@ -280,7 +280,6 @@
         command: create
         instance_name: Module5-image-gallery
         db_engine: postgres
-        db_name: image_gallery
         size: '10'
         instance_type: db.t2.micro
         username: postgres
@@ -328,8 +327,8 @@
         port: 80
         stickiness_enabled: no
         stickiness_type: source_ip
+        #if_exist_do_not_create: yes
         state: present
-        wait: yes
       register: ig_target_group
 
     - name: Create Auto Scaling Group
@@ -347,7 +346,6 @@
         health_check_period: 300
         tags:
           - Name: Module5-asg
-        wait_for_instances: yes
         state: present
 
     - name: Create Network Load Balancer
