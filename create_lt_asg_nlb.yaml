@@ -86,6 +86,8 @@
         vpc_zone_identifier: "{{public_subnet.subnet.id}}"
         health_check_type: EC2
         health_check_period: 300
+        wait_for_instances: True
+        wait_timeout: 300
         tags:
           - Name: Module5-asg
         state: present
