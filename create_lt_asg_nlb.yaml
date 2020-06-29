@@ -1,0 +1,91 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      profile: default
+      region: us-east-1
+  tasks:
+
+    #########################################################################
+    #########################################################################
+    ###########  Create launch template, target group, and nlb  #############
+    #########################################################################
+    #########################################################################
+
+    #ig_postgres_tag_sg
+    #ig_endpoint_tag_sg
+    #ig_nginx_server_sg
+    - name: Create Launch Template
+      ec2_launch_template:
+        name: Module5-ig-launch-template
+        image_id: "ami-09d95fab7fff3776c"
+        instance_type: t3a.nano
+        key_name: csKP
+        iam_instance_profile: image-gallery-server-role
+        network_interfaces:
+          - device_index: 0
+            associate_public_ip_address: yes
+            groups:
+              - "{{ig_postgres_tag_sg.group_id}}"
+              - "{{ig_endpoint_tag_sg.group_id}}"
+              - "{{ig_nginx_server_sg.group_id}}"
+        user_data: "{{ lookup('file', './startup-scripts/ec2_startup.sh') | b64encode }}"
+        state: present
+      register: ig_launch_template
+
+    - name: Create Target Group
+      elb_target_group:
+        name: Module5-ig-target-group
+        vpc_id: "{{vpc.vpc.id}}"
+        target_type: instance
+        protocol: TCP
+        port: 80
+        stickiness_enabled: no
+        stickiness_type: source_ip
+        #if_exist_do_not_create: yes
+        health_check_path: /
+        state: present
+      register: ig_target_group
+
+    - name: debug
+      debug:
+        var: ig_target_group
+
+    - name: Create Network Load Balancer
+      elb_network_lb:
+        name: Module5-ig-nlb
+        subnet_mappings:
+          - SubnetId: "{{public_subnet.subnet.id}}"
+            AllocationId: eipalloc-080333a0936e63f68
+        listeners:
+          - Protocol: TCP
+            Port: 80
+            DefaultActions:
+              - Type: forward
+                TargetGroupArn: "{{ig_target_group.target_group_arn}}"
+          - Protocol: TLS
+            Port: 443
+            Certificates:
+              - CertificateArn: arn:aws:acm:us-east-1:434648577879:certificate/eff9767c-542d-498d-a6a9-904e2052ab13
+            DefaultActions:
+              - Type: forward
+                TargetGroupArn: "{{ig_target_group.target_group_arn}}"
+        state: present
+
+    - name: Create Auto Scaling Group
+      ec2_asg:
+        name: Module5-ig-asg
+        launch_template:
+          launch_template_name: Module5-ig-launch-template
+        desired_capacity: 1
+        min_size: 1
+        max_size: 4
+        target_group_arns:
+          - "{{ig_target_group.target_group_arn}}"
+        vpc_zone_identifier: "{{public_subnet.subnet.id}}"
+        health_check_type: EC2
+        health_check_period: 300
+        tags:
+          - Name: Module5-asg
+        state: present

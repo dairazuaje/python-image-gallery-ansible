@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      profile: default
+      region: us-east-1
+  tasks:
+
+    #########################################################################
+    #########################################################################
+    #############  Create RDS private subnet group and ig-RDS  ##############
+    #########################################################################
+    #########################################################################
+
+    - name: Create RDS Subnet Group
+      rds_subnet_group:
+        name: Module5-ig-private-subnet-grp
+        description: RDS subnet group for Module 5 ig-db
+        subnets:
+          - "{{private_subnet1.subnet.id}}"
+          - "{{private_subnet2.subnet.id}}"
+        state: present
+      register: rds_subnet_grp
+
+    - name: Create RDS Instance
+      rds:
+        command: create
+        instance_name: Module5-image-gallery
+        db_engine: postgres
+        size: '10'
+        instance_type: db.t2.micro
+        username: postgres
+        password: Keldailin120217!
+        subnet: module5-ig-private-subnet-grp
+        vpc_security_groups: "{{ig_postgres_sg.group_id}}"
+        wait: yes
+        wait_timeout: 600
+      register: image_gallery_db

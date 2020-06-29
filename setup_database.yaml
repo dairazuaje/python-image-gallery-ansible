@@ -1,5 +1,5 @@
 ---
-- hosts: localhost
+- hosts: bastion
   gather_facts: no
   module_defaults:
     group/aws:
@@ -7,12 +7,15 @@
       region: us-east-1
   vars:
     host_name: "{{image_gallery_db.instance.endpoint}}"
-  tasks:
 
+  tasks:
+    - name: debug
+      debug:
+        var: host_name
     - name: Create image_gallery database
       postgresql_db:
         name: image_gallery
-        login_host: "{{image_gallery_db.instance.endpoint}}"
+        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
         login_user: postgres
         login_password: Keldailin120217!
         state: present
@@ -20,7 +23,8 @@
     - name: Create Image Gallery User
       postgresql_user:
         db: image_gallery
-        login_host: "{{image_gallery_db.instance.endpoint}}"
+        #login_host: "{{image_gallery_db.instance.endpoint}}"
+        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
         login_user: postgres
         login_password: Keldailin120217!
         name: image_gallery
@@ -41,7 +45,7 @@
       postgresql_table:
         db: image_gallery
         #db: "{{image_gallery_db.instance.db_name}}"
-        login_host: "{{image_gallery_db.instance.endpoint}}"
+        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
         login_user: image_gallery
         login_password: Keldailin120217!
         table: users
