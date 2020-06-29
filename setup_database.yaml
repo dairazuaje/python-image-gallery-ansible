@@ -55,7 +55,8 @@
       aws_secret:
         name: Module5-image-gallery-secret
         secret_type: string
-        secret: '{"username": "image_gallery", "password": "Keldailin120217!", "host": "module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com", "database_name": "image_gallery"}'
+        secret: "{\"username\": \"image_gallery\", \"password\": \"Keldailin120217!\", \"host_name\": \"{{host_name}}\", \"database_name\": \"image_gallery\"}"
+        #secret: '{"username": "image_gallery", "password": "Keldailin120217!", "\"{{host}}\"": \"host_name\", \"database_name\": \"image_gallery\"}'
         state: present
       register: secret_facts
 
