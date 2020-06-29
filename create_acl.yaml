@@ -3,7 +3,7 @@
   gather_facts: no
   module_defaults:
     group/aws:
-      profile: default
+      #profile: default
       region: us-east-1
   tasks:
 
@@ -55,4 +55,5 @@
           - [100, tcp, 'allow', '0.0.0.0/0', null, null, 80, 80]
           - [200, tcp, 'allow', '0.0.0.0/0', null, null, 443, 443]
           - [300, tcp, 'allow', '0.0.0.0/0', null, null, 1024, 65535]
+          - [400, tcp, 'allow', '0.0.0.0/0', null, null, 22, 22]
         state: present

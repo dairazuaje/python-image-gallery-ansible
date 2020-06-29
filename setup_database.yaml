@@ -1,12 +1,15 @@
 ---
 - hosts: bastion
-  gather_facts: no
+  become: true
+  user: ec2-user
+  gather_facts: yes
   module_defaults:
     group/aws:
-      profile: default
+      #profile: default
       region: us-east-1
   vars:
-    host_name: "{{image_gallery_db.instance.endpoint}}"
+    ansible_python_interpreter: /usr/bin/python3
+    host_name: "{{ lookup('file', rds.txt) }}"
 
   tasks:
     - name: debug
@@ -15,7 +18,8 @@
     - name: Create image_gallery database
       postgresql_db:
         name: image_gallery
-        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
+        login_host: "{{host_name}}"
+        #login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
         login_user: postgres
         login_password: Keldailin120217!
         state: present
@@ -23,8 +27,8 @@
     - name: Create Image Gallery User
       postgresql_user:
         db: image_gallery
-        #login_host: "{{image_gallery_db.instance.endpoint}}"
-        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
+        login_host: "{{host_name}}"
+        #login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
         login_user: postgres
         login_password: Keldailin120217!
         name: image_gallery
@@ -32,6 +36,20 @@
         priv: ALL
         role_attr_flags: INHERIT
         no_password_changes: yes
+
+    - name: Create Users Table
+      postgresql_table:
+        db: image_gallery
+        #db: "{{image_gallery_db.instance.db_name}}"
+        #login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
+        login_host: "{{host_name}}"
+        login_user: image_gallery
+        login_password: Keldailin120217!
+        table: users
+        columns:
+          - username TEXT PRIMARY KEY NOT NULL
+          - password TEXT
+          - full_name TEXT
 
     - name: Add db credentials as secret
       aws_secret:
@@ -41,15 +59,3 @@
         state: present
       register: secret_facts
 
-    - name: Create Users Table
-      postgresql_table:
-        db: image_gallery
-        #db: "{{image_gallery_db.instance.db_name}}"
-        login_host: module5-image-gallery.cyoqs8hmumyv.us-east-1.rds.amazonaws.com
-        login_user: image_gallery
-        login_password: Keldailin120217!
-        table: users
-        columns:
-          - username TEXT PRIMARY KEY NOT NULL
-          - password TEXT
-          - full_name TEXT

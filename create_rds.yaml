@@ -3,7 +3,7 @@
   gather_facts: no
   module_defaults:
     group/aws:
-      profile: default
+      #profile: default
       region: us-east-1
   tasks:
 
