@@ -45,7 +45,7 @@
       register: ec2
 
     - local_action: copy content={{ rds_address }} dest=~/python-image-gallery-ansible/rds.txt
-      
+
     - name: Wait for SSH to come up
       delegate_to: "{{ec2_dev.tagged_instances[0].public_ip}}"
       wait_for_connection:
