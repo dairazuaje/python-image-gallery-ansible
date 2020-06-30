@@ -68,6 +68,7 @@
         eip_address: 3.226.156.250
         subnet_id: "{{public_subnet.subnet.id}}"
         state: present
+        wait: yes
       register: nat
 
     - name: Create Public Route Table
