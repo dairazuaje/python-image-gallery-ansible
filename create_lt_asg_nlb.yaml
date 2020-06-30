@@ -45,6 +45,7 @@
         stickiness_type: source_ip
         #if_exist_do_not_create: yes
         health_check_path: /
+        modify_targets: False
         state: present
       register: ig_target_group
 

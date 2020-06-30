@@ -2,14 +2,14 @@
 - hosts: bastion
   become: true
   user: ec2-user
-  gather_facts: yes
+  gather_facts: no
   module_defaults:
     group/aws:
       #profile: default
       region: us-east-1
   vars:
     ansible_python_interpreter: /usr/bin/python3
-    host_name: "{{ lookup('file', '~/python-image-gallery-ansible/rds.txt') }}"
+    host_name: "{{ lookup('file', 'rds.txt') }}"
 
   tasks:
     - name: debug
@@ -59,4 +59,3 @@
         #secret: '{"username": "image_gallery", "password": "Keldailin120217!", "\"{{host}}\"": \"host_name\", \"database_name\": \"image_gallery\"}'
         state: present
       register: secret_facts
-

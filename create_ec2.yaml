@@ -1,6 +1,6 @@
 ---
 - hosts: localhost
-  gather_facts: yes
+  gather_facts: no
   vars:
     ami_id: "ami-09d95fab7fff3776c"
   module_defaults:
@@ -20,12 +20,12 @@
         image: "{{ami_id}}"
         instance_tags:
           Name: Module5 EC2 DB Setup
-        wait: yes
+        wait: true
         wait_timeout: 500
         vpc_subnet_id: "{{public_subnet.subnet.id}}"
         instance_profile_name: image-gallery-server-role
         assign_public_ip: yes
-        user_data: "{{ lookup('file', './startup-scripts/ansible_startup.sh') }}"
+        user_data: "{{ lookup('file', 'startup-scripts/ansible_startup.sh') }}"
         exact_count: 1
         count_tag:
           Name: Module5 EC2 DB Setup
@@ -37,18 +37,23 @@
 
     - name: Add dev ec2 host to hosts list
       add_host:
-        name: "{{ec2_dev.tagged_instances[0].public_ip}}"
+        name: "{{ec2_dev.tagged_instances[0].public_dns_name}}"
         groups: bastion
         #rds_address: "{{image_gallery_db.instance.endpoint}}"
         #hostname: Module5 EC2 DB Setup
         #groups: db_setup_ec2
       register: ec2
+#    - name: Add new instance to host group
+#      add_host:
+#        hostname: "{{ item.public_ip }}"
+#        groupname: bastion
+#      loop: "{{ ec2_dev.instances }}"
 
-    - local_action: copy content={{ rds_address }} dest=~/python-image-gallery-ansible/rds.txt
+    - local_action: copy content={{ rds_address }} dest=rds.txt
 
     - name: Wait for SSH to come up
-      delegate_to: "{{ec2_dev.tagged_instances[0].public_ip}}"
+      #delegate_to: "{{ item.public_dns_name }}"
       wait_for_connection:
-        delay: 30
-        timeout: 180
-      #loop: "{{ ec2.instances }}"
+        delay: 240
+        timeout: 30
+      loop: "{{ ec2_dev.instances }}"

@@ -24,6 +24,7 @@
               - 22
               - 80
               - 443
+              - 1024 - 65535
             cidr_ip: 0.0.0.0/0
         tags:
           Name: Module5-ig-nginx-server-sg
